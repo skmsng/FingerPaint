@@ -1,13 +1,20 @@
 /*
- * this.bitmap = Bitmap.createBitmap(this.w, this.h, Bitmap.Config.ARGB_8888);
- * canvasとbitmap、path
+ * Bitmap.Config.ARGB_8888は、32ビットのARGBデータでBitmapを作成する事を示しています。
+ * Bitmap.Configは、Bitmapのピクセルフォーマットの指定
+ * 
+ * Canvas canvas = new Canvas(bitmap);
+ * 画面ではなく画像に描画を行う
+ * 
+ * paintとpath
  * 
  */
 
 package sample.application.fingerpaint;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.DecimalFormat;
 
 import android.app.Activity;
@@ -64,7 +71,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		this.h = disp.getHeight();
 		
 		//各インスタンスの生成
-		this.bitmap = Bitmap.createBitmap(this.w, this.h, Bitmap.Config.ARGB_8888);	//Bitmap.Config.ARGB_8888
+		this.bitmap = Bitmap.createBitmap(this.w, this.h, Bitmap.Config.ARGB_8888);
 		this.paint = new Paint();
 		this.path = new Path();
 		this.canvas = new Canvas(this.bitmap);
@@ -109,7 +116,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 			this.path.reset();
 			break;
 		}
-		//描画(bitmap)を表示
+		//描画(bitmap)の表示
 		ImageView iv = (ImageView)this.findViewById(R.id.imageView1);
 		iv.setImageBitmap(this.bitmap);	
 		
@@ -122,19 +129,25 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		int imageNumber = prefs.getInt("imageNumber", 1);
 		File file = null;
 		
-		//外部メディアのマウントチェック
+		//外部メディアがマウントされている場合
 		if(this.externalMediaChecker()){
-			DecimalFormat form = new DecimalFormat("0000");	//書式設定
-			String path = Environment.getExternalStorageDirectory()+"/mypaint/";
+			String path = Environment.getExternalStorageDirectory()+"/mypaint/";	//SDカードのルート取得
 			File outDir = new File(path);
-			if(!outDir.exists())outDir.mkdir();
 			
+			//"/mypaint/"ディレクトリがない場合は作る
+			if(!outDir.exists()){
+				outDir.mkdir();		
+			}
+			
+			DecimalFormat form = new DecimalFormat("0000");	//書式設定
 			do{
 				file = new File(path+"img"+form.format(imageNumber)+".png");
 				imageNumber++;
 			}while(file.exists());
+			
+			//画像をpng形式に変換できた場合
 			if(this.writeImage(file)){
-				this.scanMedia(file.getPath());	//p135追記
+				this.scanMedia(file.getPath());	//画像を保存した後、メディアスキャン（キャラリーに登録）
 				SharedPreferences.Editor editor = prefs.edit();
 				editor.putInt("imageNumber", imageNumber);
 				editor.commit();
@@ -142,20 +155,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		}
 	}
 	
-	//p132
-	boolean writeImage(File file){
-		try{
-			FileOutputStream fo = new FileOutputStream(file);
-			this.bitmap.compress(CompressFormat.PNG, 100, fo);
-			fo.flush();
-			fo.close();
-		}catch(Exception e){
-			System.out.println(e.getLocalizedMessage());
-			return false;
-		}
-		return true;
-	}
-	
+	//外部メディアのマウントチェック
 	boolean externalMediaChecker(){
 		boolean result = false;
 		String status = Environment.getExternalStorageState();
@@ -164,15 +164,61 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		}
 		return result;
 	}
+	
+	//画像をpng形式に変換
+	boolean writeImage(File file){
+		FileOutputStream fo = null;
+		try{
+			fo = new FileOutputStream(file);
+			this.bitmap.compress(CompressFormat.PNG, 100, fo);
+			fo.flush();
+			fo.close();
+		}catch(FileNotFoundException e){
+			return false;
+		}catch(IOException e){
+			System.out.println(e.getLocalizedMessage());
+			return false;
+		}catch(Exception e){
+			return false;
+		}finally{
+			try {
+				fo.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return true;
+	}
+	
+	//画像をスキャンしてギャラリーに反映させる
+	MediaScannerConnection mc;
+	void scanMedia(final String fp){
+		this.mc = new MediaScannerConnection(this, new MediaScannerConnection.MediaScannerConnectionClient(){
+			public void onScanCompleted(String path, Uri uri){
+				FingerPaintActivity.this.disconnect();
+			}
+			public void onMediaScannerConnected(){
+				FingerPaintActivity.this.scanFile(fp);
+			}
+		});
+		this.mc.connect();
+	}
+	
+	void disconnect(){
+		this.mc.disconnect();
+	}
+	void scanFile(String fp){
+		this.mc.scanFile(fp, "image/png");
+	}
+	
 
-	//p133
+	//メニュー
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		MenuInflater mi = getMenuInflater();
 		mi.inflate(R.menu.menu, menu);
 		return super.onCreateOptionsMenu(menu);
 	}
-
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()){
@@ -181,7 +227,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 			break;
 		case R.id.menu_open:
 			Intent intent = new Intent(this, FilePicker.class);
-			startActivityForResult(intent, 0);
+			this.startActivityForResult(intent, 0);
 			break;
 		case R.id.menu_color_change:
 			final String[] items = getResources().getStringArray(R.array.ColorName);
@@ -202,7 +248,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 			ab.setPositiveButton(R.string.button_ok, new DialogInterface.OnClickListener(){
 				public void onClick(DialogInterface dialog, int which){
 					canvas.drawColor(Color.WHITE);
-					((ImageView)findViewById(R.id.imageView1)).setImageBitmap(bitmap);
+					((ImageView)findViewById(R.id.imageView1)).setImageBitmap(FingerPaintActivity.this.bitmap);
 				}
 			});
 			ab.setNegativeButton(R.string.button_cancel, new DialogInterface.OnClickListener(){
@@ -216,24 +262,16 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		return super.onOptionsItemSelected(item);
 	}
 	
-	//p135
-	MediaScannerConnection mc;
-	void scanMedia(final String fp){
-		mc = new MediaScannerConnection(this, new MediaScannerConnection.MediaScannerConnectionClient(){
-			public void onScanCompleted(String path, Uri uri){
-				disconnect();
-			}
-			public void onMediaScannerConnected(){
-				scanFile(fp);
-			}
-		});
-		mc.connect();
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		this.bitmap = this.loadImage(data.getStringExtra("fn"));
+		this.canvas = new Canvas(this.bitmap);
+		ImageView iv = (ImageView)this.findViewById(R.id.imageView1);
+		iv.setImageBitmap(this.bitmap);
 	}
 	
-	void scanFile(String fp){mc.scanFile(fp, "image/png");}
-	void disconnect(){mc.disconnect();}
-	
-	//p139
+	//
 	Bitmap loadImage(String path){
 		boolean landscape = false;
 		Bitmap bm;
@@ -268,14 +306,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		return bm;
 	}
 
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		bitmap = loadImage(data.getStringExtra("fn"));
-		canvas = new Canvas(bitmap);
-		ImageView iv = (ImageView)this.findViewById(R.id.imageView1);
-		iv.setImageBitmap(bitmap);
-	}
+
 
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
