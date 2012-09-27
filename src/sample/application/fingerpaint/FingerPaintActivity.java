@@ -1,3 +1,9 @@
+/*
+ * this.bitmap = Bitmap.createBitmap(this.w, this.h, Bitmap.Config.ARGB_8888);
+ * canvasとbitmap、path
+ * 
+ */
+
 package sample.application.fingerpaint;
 
 import java.io.File;
@@ -56,24 +62,28 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		//ディスプレイの大きさを取得
 		this.w = disp.getWidth();
 		this.h = disp.getHeight();
-		this.bitmap = Bitmap.createBitmap(this.w, this.h, Bitmap.Config.ARGB_8888);
+		
+		//各インスタンスの生成
+		this.bitmap = Bitmap.createBitmap(this.w, this.h, Bitmap.Config.ARGB_8888);	//Bitmap.Config.ARGB_8888
 		this.paint = new Paint();
 		this.path = new Path();
 		this.canvas = new Canvas(this.bitmap);
 		
+		//各種設定
 		this.paint.setStrokeWidth(5);
 		this.paint.setStyle(Paint.Style.STROKE);
-		this.paint.setStrokeJoin(Paint.Join.ROUND);	//本来はint型だけど0~2の３パターンに限定したいのでJoin型にしている
+		this.paint.setStrokeJoin(Paint.Join.ROUND);	//Join型(enum)で3パターン限定（本来はint型）
 		this.paint.setStrokeCap(Paint.Cap.ROUND);
 		this.canvas.drawColor(Color.WHITE);
-		iv.setImageBitmap(this.bitmap);
+		
+		iv.setImageBitmap(this.bitmap);	//描画(bitmap)を表示
 		iv.setOnTouchListener(this);
 	}
 
 //	@Override
 	public boolean onTouch(View v, MotionEvent event){
-		float x = event.getX();
-		float y = event.getY();
+		float x = event.getX();	//押したx座標
+		float y = event.getY();	//押したy座標
 		
 		switch(event.getAction()){
 		case MotionEvent.ACTION_DOWN:
@@ -83,10 +93,10 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 			this.y1 = y;
 			break;
 		case MotionEvent.ACTION_MOVE:
-			this.path.quadTo(this.x1, this.y1, x, y);
+			this.path.quadTo(this.x1, this.y1, x, y);	//曲線（直線は"lineTo"）
 			this.x1 = x;
 			this.y1 = y;
-			this.canvas.drawPath(this.path, this.paint);
+			this.canvas.drawPath(this.path, this.paint);	//描画
 			this.path.reset();
 			this.path.moveTo(x, y);
 			break;
@@ -99,8 +109,9 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 			this.path.reset();
 			break;
 		}
+		//描画(bitmap)を表示
 		ImageView iv = (ImageView)this.findViewById(R.id.imageView1);
-		iv.setImageBitmap(this.bitmap);
+		iv.setImageBitmap(this.bitmap);	
 		
 		return true;
 	}
@@ -111,8 +122,9 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 		int imageNumber = prefs.getInt("imageNumber", 1);
 		File file = null;
 		
+		//外部メディアのマウントチェック
 		if(this.externalMediaChecker()){
-			DecimalFormat form = new DecimalFormat("0000");
+			DecimalFormat form = new DecimalFormat("0000");	//書式設定
 			String path = Environment.getExternalStorageDirectory()+"/mypaint/";
 			File outDir = new File(path);
 			if(!outDir.exists())outDir.mkdir();
