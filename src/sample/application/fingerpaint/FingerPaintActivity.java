@@ -8,7 +8,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -48,8 +47,8 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-//		super.onCreate(savedInstanceState);
-//		this.setContentView(R.layout.main);
+		super.onCreate(savedInstanceState);
+		this.setContentView(R.layout.fingerpaint);
 		
 		ImageView iv = (ImageView)this.findViewById(R.id.imageView1);
 		Display disp = ((WindowManager)this.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
@@ -169,7 +168,7 @@ public class FingerPaintActivity extends Activity implements OnTouchListener{
 			this.save();
 			break;
 		case R.id.menu_open:
-			Intent intent = new Intent(this.bitmap FilePicker.class);
+			Intent intent = new Intent(this, FilePicker.class);
 			startActivityForResult(intent, 0);
 			break;
 		case R.id.menu_color_change:
